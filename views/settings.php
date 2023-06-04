@@ -153,9 +153,11 @@ jQuery(document).ready(function($) {
                     
                     <select class="form-control" id="doc_type" name="doc_type" required>
                         <option value=""></option>
+                        <option value="9" <?php selected( get_option('acc_it_doc_type'), 9 ); ?>>Invoice & Receipt</option>
                         <option value="8" <?php selected( get_option('acc_it_doc_type'), 8 ); ?>>Receipt</option>
                         <option value="3" <?php selected( get_option('acc_it_doc_type'), 3 ); ?>>Invoice</option>
-                        <option value="9" <?php selected( get_option('acc_it_doc_type'), 9 ); ?>>Invoice & Receipt</option>
+                        <option value="7" <?php selected( get_option('acc_it_doc_type'), 7 ); ?>>Order</option>
+                        <option value="12" <?php selected( get_option('acc_it_doc_type'), 12 ); ?>>Pro forma invoice</option>
                     </select>
                 </div>
                 <div class="row">
@@ -170,7 +172,10 @@ jQuery(document).ready(function($) {
                     </div>
                     <div class="form-group col-lg-6">
                         <label for="company">Select Trigger<small></small></label>
-                        <?php $statuses = $array = wc_get_order_statuses(); $op = get_option('acc_auto_create_on_new_order_triger');// ?>
+                        <?php $statuses = wc_get_order_statuses(); 
+                        $op = get_option('acc_auto_create_on_new_order_triger');
+                        $op = is_array($op) ? $op : array();
+                        ?>
 
                         <select class="form-control" id="auto_create_on_new_order_triger" name="auto_create_on_new_order_triger[]" required multiple>
                             <?php foreach ( $statuses as $item_id => $item_data ):  ?>
