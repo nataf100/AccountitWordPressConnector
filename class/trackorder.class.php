@@ -75,7 +75,7 @@ function track_order_details($order_id) {//, $source) {
     $total_notaxable = 0;
 
     $_prices_include_tax = $order_meta['_prices_include_tax'][0];
-    if ($api_doc_type == 3 || $api_doc_type == 9):
+    if ($api_doc_type == 3 || $api_doc_type == 9 || $api_doc_type == 7 || $api_doc_type == 12):
         foreach ($items as $item_id => $item_data):
             $qty = $order->get_item_meta($item_id, '_qty', true);
             if (!isset($qty) || $qty == "" || $qty == "0")

@@ -32,7 +32,7 @@ class AccountAPI {
         else if($env == 2)
         {
             //devserver server
-            $this->api_url  = "http://localhost/AccountIT/api.php";
+            $this->api_url  = "http://localhost/accountit/api.php";
         }
     }
     
