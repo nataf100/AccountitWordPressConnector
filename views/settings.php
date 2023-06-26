@@ -10,6 +10,7 @@ function my_ajax_action_function(){
     $prefix = $_POST['company'];
     $api_code = $_POST['appkey'];
     $type = $_POST['type'];
+    /*
     $url = AccountAPI::GetEnvUrl($env);
     $client = new nusoap_client($url."/api_ws.php?wsdl"); // Create a instance for nusoap client
     if($type == 1) //get caccounts
@@ -37,10 +38,10 @@ function my_ajax_action_function(){
         //Don't forget to always exit in the ajax function.
         exit();
     }
-
+  
     header( "Content-Type: application/json" );
     echo json_encode($response);
-
+    */
     //Don't forget to always exit in the ajax function.
     exit();
 
@@ -156,8 +157,7 @@ jQuery(document).ready(function($) {
                         <option value="9" <?php selected( get_option('acc_it_doc_type'), 9 ); ?>>Invoice & Receipt</option>
                         <option value="8" <?php selected( get_option('acc_it_doc_type'), 8 ); ?>>Receipt</option>
                         <option value="3" <?php selected( get_option('acc_it_doc_type'), 3 ); ?>>Invoice</option>
-                        <option value="7" <?php selected( get_option('acc_it_doc_type'), 7 ); ?>>Order</option>
-                        <option value="12" <?php selected( get_option('acc_it_doc_type'), 12 ); ?>>Pro forma invoice</option>
+
                     </select>
                 </div>
                 <div class="row">
