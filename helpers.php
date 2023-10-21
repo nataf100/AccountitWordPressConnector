@@ -1,4 +1,5 @@
 <?php
+//just a method to inform user about the status of the operation
 function success_message() {
     ?>
     <div class="notice notice-success is-dismissible">
