@@ -7,7 +7,7 @@ function success_message() {
     </div>
     <?php
 }
-//just a method to inform user about the status of the operation
+
 function error_message() {
     ?>
     <div class="notice notice-error is-dismissible">
