@@ -7,7 +7,7 @@ function success_message() {
     </div>
     <?php
 }
-
+//error notification to user
 function error_message() {
     ?>
     <div class="notice notice-error is-dismissible">
