@@ -1,5 +1,5 @@
 <?php
-define( 'VERSION', "1.56");
+define( 'VERSION', "1.57");
 
 defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
 /**
@@ -36,8 +36,6 @@ require_once( WOO_TRACKER__PLUGIN_DIR.'/class/bootfile.class.php' );
 AddFile::addFiles('/', 'helpers', 'php');
 
 if(in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins')))):
-    //AddFile::addFiles('includes/tcpdf', 'tcpdf', 'php');
-    AddFile::addFiles('includes', 'nusoap', 'php');
     AddFile::addFiles('class', 'api.class', 'php');
     AddFile::addFiles('class', 'trackorder.class', 'php');
     AddFile::addFiles('views', 'settings', 'php');
