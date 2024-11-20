@@ -55,17 +55,25 @@ function track_order_details($order_id) {//, $source) {
     $acc_auto_create_on_new_order_triger = get_option('acc_auto_create_on_new_order_triger');
     //v 1.5.1
     $acc_it_update_inventory = get_option('acc_it_update_inventory'); 
+    
+    //check if function $order->get_status() exists
+    if (method_exists($order, 'get_status')) {
+        $order_status = "wc-".$order->get_status(); //status changed in woo 9.0
+    } else {
+        $order_status = $order->post_status;
+    }
+    
     //bad status do not continue
     if ($order->post_status == "wc-cancelled" || $order->post_status == "wc-refunded" || $order->post_status == "wc-failed")
         return;
 
     $acc_status = isset($order_meta["acc_status"]) && sizeof($order_meta["acc_status"]) > 0 ? $order_meta["acc_status"][0] : null;
-
+    
     if ($acc_auto_create_on_new_order == 0) //plugin is disabled -> exit
         return;
 
     //not the right status -> exit
-    if (in_array($order->post_status, $acc_auto_create_on_new_order_triger) != "1")
+    if (in_array($order_status, $acc_auto_create_on_new_order_triger) != "1")
         return;
 
     if ($acc_status == 1) //doc was already send  ->exit
