@@ -9,7 +9,7 @@ defined('ABSPATH') or die('No script kiddies please!');
 Plugin Name: Woo AccountIT Connector
 Plugin URI: https://accountit.co.il
 Description: This plugins sends a mail to the shop admin and the customer a mail of the ordered pdf and also pushes the data to AccountIT database
-Version: 1.57
+Version: 1.56
 Author: AccountIT
 Author URI: https://accountit.co.il
 Text Domain: woo-tracker
@@ -22,20 +22,6 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 Copyright 2021 AccountIT, Inc.
 */
-
-require 'plugin-update-checker/plugin-update-checker.php';
-
-$myUpdateChecker = PucFactory::buildUpdateChecker(
-	'https://github.com/nataf100/AccountitWordPressConnector',
-	__FILE__,
-	'woo-accountit-connector'
-);
-
-//Set the branch that contains the stable release.
-$myUpdateChecker->setBranch('main');
-$myUpdateChecker->debugMode = true;
-
-
 
 // Make sure we don't expose any info if called directly
 if (!function_exists('add_action')) {
