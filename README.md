@@ -46,71 +46,127 @@ Confirm the latest release tag matches the updated version number.
 
 [Latest Release Link](https://github.com/nataf100/AccountitWordPressConnector/releases/)
 
-## Installation Guide
+## Overview
 
-WooCommerce Plugin for AccountIT
-Version: 1.55
-תוסף זה מאפשר לחנויות המופעלות על פלטפורמת וורדפרס ו-WooCommerce להתממשק למערכת
-AccountIT ולהפיק מסמך באופן אוטומטי לפי נתוני עסקת המכירה.
-שינויים מגרסה קודמת:
-.1 תמיכה בשערי מט"ח. סוג המטבע שיישלח למערכת AccountIT יילקח ממטבע ברירת המחדל
-שהוגדר בוורדפרס. במידה והמטבע לא הוגדר גם במערכת AccountIT יחושבו הערכים
-בשקלים.
-.2 שליחה אוטומטית של חשבונית/קבלה בעת קבלת הזמנה חדשה.
-.3 מניעת שליחת מסמך נוסף בעת שינוי סטטוס הזמנה.
-.4 הוספת טיפול במשלוח ומיסוי משלוח.
-.5 הוספת בחירה מרובה של מצבי הפעלה.
-.6 הוספת אפשרות לבחירת סביבת העבודה.
-.7 הוספת משיכה של פריט ומספר לקוח ממערכת AccountIT.
-התקנת התוסף:
-תהליך התקנת התוסף פשוט יחסית אך ממומלץ שיתבצע ע"י מישהו המכיר לעומק את הפלטפורמות
-השונות.
-.1 התקנת התוסף – יש להתקין כרגיל ע"י העלאת הקובץ המכווץ לפלטפורמת וורדפרס והפעלתו.
-.2 לאחר שהתוסף מותקן ומופעל )active )יש להיכנס ל-“Connector AccountIT Woo ”
-בדשבורד של וורדפרס.
-.3 בשדה Name User יש להזין את שם המשתמש במערכת AccountIT – זהו בדרך כלל המייל
-עמו נרשמתם למערכת AccountIT.
-.4 בשדה: Key API יש להזין את המפתח האישי של משתמש AccountIT. ניתן לקבלו מתוך
-מערכת AccountIT בתפריט: הגדרות -< עריכת פרטי משתמש -< קוד API פרטי
-.5 בשדה: ID Company יש להזין את מזהה החברה עמה נרצה שהתוסף יעבוד. ניתן לקבלו
-בתפריט: הגדרות -< עריכת פרטי משתמש -< קוד חברה.
-התהליך לעיל מאפשר את חיבור התוסף למערכת, וכעת יש להגדיר את אופן ניהול והפקת המסמכים:
-.1 בשדה Type Document Generated יש לבחור את סוג המסמך שנרצה להפיק עם התוסף
-באופן אוטומטי: קבלה )Receipt), חשבונית )Invoice), או חשבונית קבלה ) & Invoice
-.)Receipt
-.2 בשדה Trigger Activation נגדיר מתי התוסף פעיל: כבוי )Disabled )או פעיל כשהסטטוס
-.)Run when order status changed to( משתנה
-.3 בשדה Trigger Select נגדיר מה יהיה טריגר הפעולה להפקת מסמך. מומלץ שיהיה מוגדר
-completed לאחר הטיפול בהזמנה.
-.4 בשדה Notification) Buyer (Client נגדיר האם לשלוח את המסמך ללקוח במייל ) Email
-Attached PDF with )או לא לשלוח כלל )None).
-.5 בשדה ID Client AccountIT נזין את הקוד )המספרי( של החשבון במערכת AccountIT אליו
-נרצה לשייך את פקודות היומן שיווצרו במערכת – בדרך כלל חשבון כללי או חשבון שמייצג את
-החנות הספציפית. חשוב מאוד שחשבון זה יהיה קיים במערכת AccountIT.
-.6 בשדה Item AccountIT נציין את קוד הפריט במערכת AccountIT. בדרך כלל אין חפיפה בין
-הפריטים בחנות הוורדפרס לפריטים ב-AccountIT ולכן ממולץ להזין בשדה זה את קוד הפריט
-הכללי )בדרך כלל 1(. חשוב מאוד שקוד פריט זה יהיה קיים במערכת AccountIT.
-.7 בשדה Calculation VAT נבחר כיצד יתבצע חישוב המע"מ בפועל:
- כל כי מגדיר – Let AccountIT recalculate VAT based on your company settings -
-חישוב המע"מ יעשה ע"י מערכת AccountIT בהתאם להגדרות שהוזנו בה.
-חשוב: במידה ולא הוזן מס )TAX )לפריט מסוים אז המערכת תתייחס למכירה כאל מכירה
-לחו"ל, ללא חובת מע"מ ולכן יש לשים לב שהגדרות המע"מ בחנות תואמות את הדרישות
-החוקיות של רשויות המס.
- מאפשר – Allow Zero VAT deals (Based on WooCommerce Standard Rates) -
-הפקת מסמכים ללא חישוב מע"מ במערכת AccountIT אלא כפי שהוגדר בתוסף
-WooCommerce( משמש בעיקר לצורך מכירות לחו"ל(.
-.8 בשדה Inventory Update נבחר כיצד לעדכן את מלאי העסק במערכת AccountIT:
-- inventory AccountIT update not Do – מגדיר לא לעדכן את המלאי.
-- inventory AccountIT Update – מגדיר לעדכן את המלאי.
- לעדכן מגדיר – Update AccountIT inventory and add new items if missing -
-את המלאי ולהוסיף פריטים חדשים אם המלאי אזל.
-.9 בשדה Environment נקבע את מצב התוסף )למתקדמים בלבד(:
-- Live – התוסף עובד.
-- Testing – שרת ניסיון לוורדפרס, ניתן להפעיל את התוסף רק שם.
-– Develop – שרת מפתחים לוורדפרס, ניתן להפעיל את התוסף רק שם.
-שימוש בתוסף
-לאחר התקנת התוסף בהצלחה תתווסף עמודה לצד כל הזמנה שבוצעה באתר בתוסף
-WooCommerce עם מספר המסמך.
-הערה חשובה: לא ניתן להפיק חשבונית/חשבונית קבלה לקנייה המכילה פריטים החייבים במע"מ עם
-פריטים שלא חייבים במע"מ.
-בהצלחה!
+# WooCommerce AccountIT Connector Plugin
+This WordPress WooCommerce plugin allows stores to interface with the AccountIT system and automatically generate documents based on sales transaction data.
+
+## Features
+- Automatic document generation (Receipt, Invoice, or Invoice & Receipt)
+- Support for foreign currency exchange rates
+- Automatic document sending for new orders
+- Shipping and taxation handling
+- Multiple activation mode selection
+- Work environment selection
+- Item and customer details retrieval from AccountIT
+
+## Installation
+
+### Prerequisites
+- WordPress
+- WooCommerce
+- AccountIT System Account
+
+### Installation Steps
+1. Upload the compressed plugin file to your WordPress platform and activate it.
+2. Navigate to "Woo AccountIT Connector" in the WordPress dashboard.
+3. Configure the following settings:
+   - **User Name**: Your AccountIT system email
+   - **API Key**: Personal API key from AccountIT (Settings -> Edit User Details -> API Personal Code)
+   - **Company ID**: Company identifier (Settings -> Edit User Details -> Company Code)
+
+## Configuration Options
+
+### Document Generation
+- **Generated Document Type**: 
+  - Receipt
+  - Invoice
+  - Invoice & Receipt
+
+### Activation Triggers
+- Disabled
+- Activate when order status changes
+
+### Client Notification
+- Send document via email
+- No notification
+
+### Additional Settings
+- VAT Calculation methods
+- Inventory update options
+- Environment modes (Live, Testing, Develop)
+
+## Important Notes
+- Cannot generate invoices mixing VAT-liable and non-VAT-liable items
+- Ensure tax settings comply with legal requirements
+- Recommended installation by someone familiar with WordPress and WooCommerce platforms
+
+## Support
+For support and additional information, contact your AccountIT system administrator.
+
+
+## Disclaimer
+This plugin is provided as-is. Always test thoroughly in a staging environment before production deployment.
+
+---
+
+# תוסף WooCommerce למערכת AccountIT
+
+## סקירה כללית
+תוסף זה למערכות WordPress ו-WooCommerce מאפשר ממשק למערכת AccountIT ויצירת מסמכים באופן אוטומטי על פי נתוני עסקאות מכירה.
+
+## תכונות
+- יצירת מסמכים אוטומטית (קבלה, חשבונית, או חשבונית וקבלה)
+- תמיכה בשערי מט"ח
+- שליחת מסמכים אוטומטית עבור הזמנות חדשות
+- טיפול במשלוח ובמיסוי
+- בחירה מרובה של מצבי הפעלה
+- בחירת סביבת עבודה
+- משיכת פרטי פריט ולקוח ממערכת AccountIT
+
+## התקנה
+
+### דרישות מוקדמות
+- WordPress
+- WooCommerce
+- חשבון במערכת AccountIT
+
+### שלבי התקנה
+1. העלאת קובץ התוסף המכווץ לפלטפורמת WordPress והפעלתו.
+2. כניסה ל-"Woo AccountIT Connector" בלוח הבקרה של WordPress.
+3. הגדרת ההגדרות הבאות:
+   - **שם משתמש**: כתובת המייל של מערכת AccountIT
+   - **מפתח API**: מפתח API אישי מ-AccountIT (הגדרות -> עריכת פרטי משתמש -> קוד API פרטי)
+   - **מזהה חברה**: מזהה החברה (הגדרות -> עריכת פרטי משתמש -> קוד חברה)
+
+## אפשרויות תצורה
+
+### יצירת מסמכים
+- **סוג מסמך שייווצר**: 
+  - קבלה
+  - חשבונית
+  - חשבונית וקבלה
+
+### טריגרי הפעלה
+- כבוי
+- הפעלה בעת שינוי סטטוס הזמנה
+
+### התראות ללקוח
+- שליחת מסמך בדוא"ל
+- ללא התראה
+
+### הגדרות נוספות
+- שיטות חישוב מע"מ
+- אפשרויות עדכון מלאי
+- מצבי סביבה (חי, בדיקה, פיתוח)
+
+## הערות חשובות
+- לא ניתן להפיק חשבוניות המערבות פריטים החייבים במע"מ עם פריטים שאינם חייבים במע"מ
+- ודאו כי הגדרות המס תואמות את הדרישות החוקיות
+- מומלץ להתקין על ידי מישהו המכיר לעומק את WordPress ו-WooCommerce
+
+## תמיכה
+לתמיכה ומידע נוסף, צרו קשר עם מנהל מערכת AccountIT.
+
+## הבהרה
+תוסף זה מסופק כפי שהוא. תמיד בצעו בדיקות יסודיות בסביבת staging לפני הפעלה בסביבת הפקה.
