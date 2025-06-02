@@ -11,7 +11,7 @@ class AccountAPI {
         else if($env_id == 2)
         {
             //devserver server
-            return "http://localhost/accountit/";
+            return "http://accountit.local/";
         }
         return "https://my.accountit.co.il/";
     }
@@ -32,7 +32,7 @@ class AccountAPI {
         else if($env == 2)
         {
             //devserver server
-            $this->api_url  = "http://localhost/accountit/api.php";
+            $this->api_url  = "http://accountit.local/api.php";
         }
     }
     
@@ -80,7 +80,19 @@ class AccountAPI {
     function getData($serial = '9999') {
         $auth_check = self::authCheck();
         $str = "$this->api_url?action=Get&company_code=".$this->company_code."&appKey=$this->appkey&jsoncallback=jcb&version=".VERSION."&data=Document&num=$serial";
+      
+        if( $auth_check == -1 ):
+            return;
+        endif;
 
+        $result = self::getCurl($str);
+        return self::filterData($result);
+    }
+
+    function getItemData($serial = '9999') {
+        $auth_check = self::authCheck();
+        $str = "$this->api_url?action=Get&data=ItemList&company_code=".$this->company_code."&appKey=$this->appkey&jsoncallback=jcb&version=".VERSION."&num=$serial";
+       
         if( $auth_check == -1 ):
             return;
         endif;

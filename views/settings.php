@@ -47,6 +47,126 @@ function my_ajax_action_function(){
 
 }
 
+function import_accountit_items_to_woocommerce() {
+    // Get API credentials from options
+    $username = get_option('acc_it_username');
+    $appkey = get_option('acc_it_appkey');
+    $company = get_option('acc_it_company');
+    $env = get_option('acc_it_env');
+    
+    $api_user_name = get_option('acc_it_username');
+    $api_app_key = get_option('acc_it_appkey');
+    $api_company_key = get_option('acc_it_company');
+    if (empty($username) || empty($appkey) || empty($company)) {
+        // Add error notice if credentials are missing
+        add_action('admin_notices', function() {
+            ?>
+            <div class="notice notice-error is-dismissible">
+                <p><?php _e('Please configure AccountIT API credentials in the settings.', 'woo-account-it-text-domain'); ?></p>
+            </div>
+            <?php
+        });
+        return false;
+    }
+    $accit = new AccountAPI($api_user_name, $api_app_key, $api_company_key);
+
+    
+    try {
+        $response = $accit->getItemData(10);
+       
+        if (is_wp_error($response)) {
+            throw new Exception('Failed to retrieve data from AccountIT: ' . $response->get_error_message());
+        }
+        
+        $items = $response;
+        if (!is_array($items)) {
+            throw new Exception('Invalid API response format');
+        }
+        
+        $imported_count = 0;
+        $updated_count = 0;
+        
+        // Process each item
+        foreach ($items as $item) {
+            // Skip items without required fields
+            if (empty($item['num']) || empty($item['name'])) {
+                continue;
+            }
+            
+            // Check if product already exists by SKU (item num)
+            $product_id = wc_get_product_id_by_sku($item['num']);
+            
+            if ($product_id) {
+                // Update existing product
+                $product = wc_get_product($product_id);
+                $updated_count++;
+            } else {
+                // Create new product
+                $product = new WC_Product();
+                $imported_count++;
+            }
+            
+            // Set basic product data
+            $product->set_name($item['name']);
+            $product->set_sku($item['num']);
+            $product->set_status('publish');
+            
+            // Set price if available
+            if (isset($item['defprice']) && is_numeric($item['defprice'])) {
+                $product->set_regular_price($item['defprice']);
+            }
+            
+            // Set description if available
+            if (!empty($item['description'])) {
+                $product->set_description($item['description']);
+            }
+            
+            // Set inventory if available
+            if (isset($item['unit']) && is_numeric($item['unit'])) {
+                $product->set_manage_stock(true);
+                $product->set_stock_quantity($item['unit']);
+            }
+            
+            // Save the product
+            $product->save();
+        }
+        
+        // Add admin notice about import results
+        add_action('admin_notices', function() use ($imported_count, $updated_count) {
+            ?>
+            <div class="notice notice-success is-dismissible">
+                <p><?php 
+                    printf(
+                        __('Successfully imported %d new items and updated %d existing items from AccountIT.', 'woo-account-it-text-domain'),
+                        $imported_count,
+                        $updated_count
+                    ); 
+                ?></p>
+            </div>
+            <?php
+        });
+        
+        return true;
+        
+    } catch (Exception $e) {
+        // Add error notice
+        add_action('admin_notices', function() use ($e) {
+            ?>
+            <div class="notice notice-error is-dismissible">
+                <p><?php 
+                    printf(
+                        __('Error importing items from AccountIT: %s', 'woo-account-it-text-domain'),
+                        $e->getMessage()
+                    ); 
+                ?></p>
+            </div>
+            <?php
+        });
+        
+        return false;
+    }
+}
+
 function woo_tracker_settings_details() {
 
      $status = null;
@@ -68,8 +188,18 @@ function woo_tracker_settings_details() {
         $status = update_option( 'acc_it_env', $_POST['env'] );
         //1.5.1
         $status = update_option( 'acc_it_update_inventory', $_POST['update_inventory'] );
-         
+        // 1.60
+        $status = update_option( 'acc_it_sync_import', $_POST['sync_import'] );
 
+        // Check if sync_import is set to "Yes" (value 1)
+        if ($_POST['sync_import'] == 1) {
+            // Trigger the import process
+            $import_status = import_accountit_items_to_woocommerce();
+            
+            if ($import_status) {
+                $status = true; // Mark as successful if import worked
+            }
+        }
     endif;
 ?>
 
@@ -236,6 +366,14 @@ jQuery(document).ready(function($) {
                         <option value="2" <?php selected( get_option('acc_it_env'), 2 ); ?>>Develop</option>
                     </select>
                 </div>
+                <br>
+                <div class="form-group">
+                    <label for="sync_import">Import AccountIT Items To WooCommerce Products <small></small></label>
+                    
+                    <select class="form-control" id="sync_import" name="sync_import" required>
+                        <option value="0" <?php selected( get_option('acc_it_sync_import'), 0 ); ?>>No</option>
+                        <option value="1" <?php selected( get_option('acc_it_sync_import'), 1 ); ?>>Yes</option>
+                    </select>
                 <br>
                 <input id="submit" type="submit" name="save-credence" class="btn btn-success btn-sm btn-block" value="Save Data">
             </form>
