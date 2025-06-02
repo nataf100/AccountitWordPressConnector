@@ -1,4 +1,11 @@
 <?php
+
+/**
+ * Settings page for AccountIT WordPress Connector
+ *
+ * @package AccountitWordPressConnector
+ */
+
 defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
 
 add_action('wp_ajax_my_action', 'my_ajax_action_function');
@@ -47,7 +54,140 @@ function my_ajax_action_function(){
 
 }
 
-function import_accountit_items_to_woocommerce() {
+/**
+ * Export WooCommerce products in standard WooCommerce CSV format
+ */
+function export_products_to_accountit() {
+    // Verify nonce and permissions
+    if (!wp_verify_nonce($_REQUEST['security'], 'accountit_export_nonce') || !current_user_can('manage_options')) {
+        wp_send_json_error(__('Permission denied', 'woo-account-it-text-domain'));
+    }
+
+    // Get all products
+    $args = array(
+        'status' => 'publish',
+        'limit' => -1,
+        'return' => 'objects',
+    );
+    $products = wc_get_products($args);
+
+    if (empty($products)) {
+        wp_send_json_error(__('No products found', 'woo-account-it-text-domain'));
+    }
+
+    // Prepare CSV headers (matching WooCommerce export format)
+    $headers = array(
+        'ID',
+        'Type',
+        'SKU',
+        'Name',
+        'Published',
+        'Is featured?',
+        'Visibility in catalog',
+        'Short description',
+        'Description',
+        'Date sale price starts',
+        'Date sale price ends',
+        'Tax status',
+        'Tax class',
+        'In stock?',
+        'Stock',
+        'Backorders allowed?',
+        'Sold individually?',
+        'Weight (kg)',
+        'Length (cm)',
+        'Width (cm)',
+        'Height (cm)',
+        'Allow customer reviews?',
+        'Purchase note',
+        'Sale price',
+        'Regular price',
+        'Categories',
+        'Tags',
+        'Shipping class',
+        'Images',
+        'Download limit',
+        'Download expiry days',
+        'Parent',
+        'Grouped products',
+        'Upsells',
+        'Cross-sells',
+        'External URL',
+        'Button text',
+        'Position'
+    );
+
+    // Prepare data rows
+    $data = array();
+    foreach ($products as $product) {
+        $data[] = array(
+            $product->get_id(),
+            $product->get_type(),
+            $product->get_sku(),
+            $product->get_name(),
+            $product->get_status() === 'publish' ? 1 : 0,
+            $product->get_featured() ? 1 : 0,
+            $product->get_catalog_visibility(),
+            $product->get_short_description(),
+            $product->get_description(),
+            $product->get_date_on_sale_from(),
+            $product->get_date_on_sale_to(),
+            $product->get_tax_status(),
+            $product->get_tax_class(),
+            $product->is_in_stock() ? 1 : 0,
+            $product->get_stock_quantity(),
+            $product->get_backorders(),
+            $product->is_sold_individually() ? 1 : 0,
+            $product->get_weight(),
+            $product->get_length(),
+            $product->get_width(),
+            $product->get_height(),
+            $product->get_reviews_allowed() ? 1 : 0,
+            $product->get_purchase_note(),
+            $product->get_sale_price(),
+            $product->get_regular_price(),
+            implode(', ', wp_list_pluck($product->get_category_ids(), 'name')),
+            implode(', ', wp_list_pluck($product->get_tag_ids(), 'name')),
+            $product->get_shipping_class(),
+            implode(', ', $product->get_gallery_image_ids()),
+            $product->get_download_limit(),
+            $product->get_download_expiry(),
+            $product->get_parent_id(),
+            implode(', ', $product->get_children()),
+            implode(', ', $product->get_upsell_ids()),
+            implode(', ', $product->get_cross_sell_ids()),
+            $product->get_type() === 'external' ? $product->get_product_url() : '',
+            $product->get_type() === 'external' ? $product->get_button_text() : '',
+            $product->get_menu_order()
+        );
+    }
+
+    // Generate CSV file
+    $filename = 'woocommerce-products-export-' . date('Y-m-d') . '.csv';
+    
+    header('Content-Type: text/csv');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    
+    $output = fopen('php://output', 'w');
+    
+    // Add BOM to fix UTF-8 in Excel
+    fwrite($output, "\xEF\xBB\xBF");
+    
+    // Write headers
+    fputcsv($output, $headers);
+    
+    // Write data
+    foreach ($data as $row) {
+        fputcsv($output, $row);
+    }
+    
+    fclose($output);
+    exit;
+}
+add_action('wp_ajax_export_products_to_accountit', 'export_products_to_accountit');
+
+
+function import_accountit_items_to_woocommerce($sync_type = 'full') {
     // Get API credentials from options
     $username = get_option('acc_it_username');
     $appkey = get_option('acc_it_appkey');
@@ -72,11 +212,14 @@ function import_accountit_items_to_woocommerce() {
 
     
     try {
-        $response = $accit->getItemData(10);
+        // Get items from AccountIT
+        $response = $accit->getItemData(($sync_type == 'full') ? 0 : 100); // Example: 0 for all, 100 for recent
+       
        
         if (is_wp_error($response)) {
             throw new Exception('Failed to retrieve data from AccountIT: ' . $response->get_error_message());
         }
+        
         
         $items = $response;
         if (!is_array($items)) {
@@ -86,93 +229,89 @@ function import_accountit_items_to_woocommerce() {
         $imported_count = 0;
         $updated_count = 0;
         
-        // Process each item
-        foreach ($items as $item) {
-            // Skip items without required fields
-            if (empty($item['num']) || empty($item['name'])) {
+        
+
+        foreach ($response as $item) {
+            if (empty($item['num']) || empty($item['name'])) continue;
+            
+            $product_id = wc_get_product_id_by_sku($item['num']);
+            
+            // For partial sync, skip existing products
+            if ($sync_type == 'partial' && $product_id) {
                 continue;
             }
             
-            // Check if product already exists by SKU (item num)
-            $product_id = wc_get_product_id_by_sku($item['num']);
-            
             if ($product_id) {
-                // Update existing product
                 $product = wc_get_product($product_id);
                 $updated_count++;
             } else {
-                // Create new product
                 $product = new WC_Product();
                 $imported_count++;
             }
             
-            // Set basic product data
+            // Set product data
             $product->set_name($item['name']);
             $product->set_sku($item['num']);
             $product->set_status('publish');
             
-            // Set price if available
             if (isset($item['defprice']) && is_numeric($item['defprice'])) {
                 $product->set_regular_price($item['defprice']);
             }
             
-            // Set description if available
             if (!empty($item['description'])) {
                 $product->set_description($item['description']);
             }
             
-            // Set inventory if available
             if (isset($item['unit']) && is_numeric($item['unit'])) {
                 $product->set_manage_stock(true);
                 $product->set_stock_quantity($item['unit']);
             }
             
-            // Save the product
             $product->save();
         }
         
-        // Add admin notice about import results
-        add_action('admin_notices', function() use ($imported_count, $updated_count) {
-            ?>
-            <div class="notice notice-success is-dismissible">
-                <p><?php 
-                    printf(
-                        __('Successfully imported %d new items and updated %d existing items from AccountIT.', 'woo-account-it-text-domain'),
-                        $imported_count,
-                        $updated_count
-                    ); 
-                ?></p>
-            </div>
-            <?php
-        });
-        
-        return true;
+        return array(
+            'success' => true,
+            'imported' => $imported_count,
+            'updated' => $updated_count
+        );
         
     } catch (Exception $e) {
-        // Add error notice
-        add_action('admin_notices', function() use ($e) {
-            ?>
-            <div class="notice notice-error is-dismissible">
-                <p><?php 
-                    printf(
-                        __('Error importing items from AccountIT: %s', 'woo-account-it-text-domain'),
-                        $e->getMessage()
-                    ); 
-                ?></p>
-            </div>
-            <?php
-        });
-        
-        return false;
+        return new WP_Error('import_error', $e->getMessage());
+    }
+}
+
+add_action('wp_ajax_accountit_sync_items', 'handle_accountit_sync_items_ajax');
+
+function handle_accountit_sync_items_ajax() {
+    check_ajax_referer('accountit_sync_nonce', 'security');
+    
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error('Unauthorized', 403);
+    }
+    
+    $sync_type = isset($_POST['sync_type']) ? sanitize_text_field($_POST['sync_type']) : 'full';
+    $result = import_accountit_items_to_woocommerce($sync_type);
+    
+    if (is_wp_error($result)) {
+        wp_send_json_error($result->get_error_message());
+    } else {
+        wp_send_json_success(array(
+            'imported' => $result['imported'],
+            'updated' => $result['updated']
+        ));
     }
 }
 
 function woo_tracker_settings_details() {
 
      $status = null;
-
+// Get current tab
+        $current_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'api_settings';
      if( isset($_POST['save-credence']) && !empty($_POST['username']) && !empty($_POST['appkey']) && !empty($_POST['company'])  && !empty($_POST['doc_type']) 
      && is_numeric($_POST['doc_type']) && is_numeric($_POST['account_id']) && is_numeric($_POST['item_id'])):
+
+     
 
         $status = update_option( 'acc_it_username', $_POST['username'] );
         $status = update_option( 'acc_it_appkey', $_POST['appkey'] );
@@ -235,6 +374,72 @@ jQuery(document).ready(function($) {
                                  $("#item_id").val( msg.response[0].num);
                      });
         });
+
+        // New AJAX for import/export
+    $('#start-sync').click(function() {
+        var sync_type = $('#sync_type').val();
+        $('#sync-status').text('Starting sync...').css('color', 'blue');
+        $('#sync-progress').show();
+        
+        $.ajax({
+            url: ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'accountit_sync_items',
+                sync_type: sync_type,
+                security: '<?php echo wp_create_nonce("accountit_sync_nonce"); ?>'
+            },
+            xhr: function() {
+                var xhr = new window.XMLHttpRequest();
+                xhr.addEventListener("progress", function(evt) {
+                    if (evt.lengthComputable) {
+                        var percentComplete = evt.loaded / evt.total;
+                        $('.progress-bar').css('width', Math.round(percentComplete * 100) + '%');
+                        $('.sync-details').text('Processing: ' + Math.round(percentComplete * 100) + '%');
+                    }
+                }, false);
+                return xhr;
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#sync-status').text('Sync completed successfully!').css('color', 'green');
+                    $('.sync-details').text('Imported: ' + response.data.imported + ' items, Updated: ' + response.data.updated);
+                } else {
+                    $('#sync-status').text('Sync failed: ' + response.data).css('color', 'red');
+                }
+            },
+            error: function(xhr, status, error) {
+                $('#sync-status').text('Sync error: ' + error).css('color', 'red');
+            }
+        });
+    });
+    
+    $('#export-products').click(function() {
+        $('#export-status').text('Preparing export...').css('color', 'blue');
+        
+        // Create a temporary form to trigger download
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = ajaxurl;
+        
+        var inputAction = document.createElement('input');
+        inputAction.type = 'hidden';
+        inputAction.name = 'action';
+        inputAction.value = 'export_products_to_accountit';
+        form.appendChild(inputAction);
+        
+        var inputNonce = document.createElement('input');
+        inputNonce.type = 'hidden';
+        inputNonce.name = 'security';
+        inputNonce.value = '<?php echo wp_create_nonce("accountit_export_nonce"); ?>';
+        form.appendChild(inputNonce);
+        
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+        
+        $('#export-status').text('Export completed!').css('color', 'green');
+    });
 });
 </script> 
 
@@ -254,6 +459,69 @@ jQuery(document).ready(function($) {
 {
     float: left;
 }
+
+.nav-tab-wrapper {
+    margin: 20px 0 15px;
+    border-bottom: 1px solid #ccc;
+}
+.nav-tab {
+    border: 1px solid #ccc;
+    background: #e5e5e5;
+    padding: 5px 15px;
+    margin-right: 5px;
+    text-decoration: none;
+    color: #555;
+    border-bottom: none;
+}
+.nav-tab-active {
+    background: #f1f1f1;
+    border-bottom: 1px solid #f1f1f1;
+    margin-bottom: -1px;
+    color: #000;
+}
+.import-export-section {
+    padding: 20px;
+    background: #fff;
+    border: 1px solid #ddd;
+    margin-top: 20px;
+}
+.progress {
+    height: 20px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,.1);
+}
+.progress-bar {
+    float: left;
+    width: 0;
+    height: 100%;
+    font-size: 12px;
+    line-height: 20px;
+    color: #fff;
+    text-align: center;
+    background-color: #337ab7;
+    transition: width .6s ease;
+}
+.export-section {
+    background: #fff;
+    padding: 20px;
+    margin-top: 20px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.export-options {
+    padding: 10px;
+    background: #f9f9f9;
+    border-radius: 4px;
+}
+
+.btn-primary .dashicons {
+    vertical-align: middle;
+    margin-right: 5px;
+}
 </style>
 <p></p>
 <div class="container">
@@ -262,6 +530,12 @@ jQuery(document).ready(function($) {
             <img class="img-responsive center-block" src="<?php echo AddFile::addFiles('assets/images', 'icon', 'png', true); ?>" alt="logo">
              <h3>AccountIT - Advanced Accounting System</h3>
              <small>Version: <?php echo VERSION; ?></small>
+             <!-- Tab Navigation -->
+                <h2 class="nav-tab-wrapper">
+                    <a href="?page=views/settings.php&tab=api_settings" class="nav-tab <?php echo $current_tab == 'api_settings' ? 'nav-tab-active' : ''; ?>">API Settings</a>
+                    <a href="?page=views/settings.php&tab=import_export" class="nav-tab <?php echo $current_tab == 'import_export' ? 'nav-tab-active' : ''; ?>">Import/Export</a>
+                </h2>
+        <?php if($current_tab == 'api_settings'): ?>
             <form action="" method="post">
                 <br style="clear:both">
                 <h4>API Settings</h4>
@@ -367,16 +641,44 @@ jQuery(document).ready(function($) {
                     </select>
                 </div>
                 <br>
-                <div class="form-group">
-                    <label for="sync_import">Import AccountIT Items To WooCommerce Products <small></small></label>
-                    
-                    <select class="form-control" id="sync_import" name="sync_import" required>
-                        <option value="0" <?php selected( get_option('acc_it_sync_import'), 0 ); ?>>No</option>
-                        <option value="1" <?php selected( get_option('acc_it_sync_import'), 1 ); ?>>Yes</option>
-                    </select>
-                <br>
                 <input id="submit" type="submit" name="save-credence" class="btn btn-success btn-sm btn-block" value="Save Data">
             </form>
+
+            <?php elseif($current_tab == 'import_export'): ?>
+                    <!-- Import/Export Tab Content -->
+                    <div class="import-export-section">
+                        <h4>Import Items from AccountIT</h4>
+                        
+                        <div class="form-group">
+                            <label>Sync Options</label>
+                            <select class="form-control" id="sync_type">
+                                <option value="full">Full Sync (Import all items)</option>
+                                <option value="partial">Partial Sync (Import only new items)</option>
+                            </select>
+                        </div>
+                        
+                        <button id="start-sync" class="btn btn-primary">Start Sync Now</button>
+                        <span id="sync-status" style="margin-left: 10px;"></span>
+                        
+                        <div id="sync-progress" style="margin-top: 20px; display: none;">
+                            <div class="progress">
+                                <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <p class="sync-details"></p>
+                        </div>
+                        
+                        <hr>
+                        <div class="export-section">
+                            <h4>Export Products to AccountIT</h4>
+                            <p>Export your current WooCommerce products in standard WooCommerce CSV format.</p>
+                            
+                            <button id="export-products" class="btn btn-primary">
+                                <span class="dashicons dashicons-download"></span> Export Products
+                            </button>
+                            <span id="export-status" style="margin-left: 10px;"></span>
+                        </div>
+                    </div>
+                <?php endif; ?>
             <?php if(!empty($status)): ?>
                 <br>
                 <div class="alert alert-success" role="alert"> <strong>Well done!</strong> Successfully Saved </div>
