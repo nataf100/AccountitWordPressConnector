@@ -327,18 +327,7 @@ function woo_tracker_settings_details() {
         $status = update_option( 'acc_it_env', $_POST['env'] );
         //1.5.1
         $status = update_option( 'acc_it_update_inventory', $_POST['update_inventory'] );
-        // 1.60
-        $status = update_option( 'acc_it_sync_import', $_POST['sync_import'] );
-
-        // Check if sync_import is set to "Yes" (value 1)
-        if ($_POST['sync_import'] == 1) {
-            // Trigger the import process
-            $import_status = import_accountit_items_to_woocommerce();
-            
-            if ($import_status) {
-                $status = true; // Mark as successful if import worked
-            }
-        }
+        
     endif;
 ?>
 
@@ -378,9 +367,23 @@ jQuery(document).ready(function($) {
         // New AJAX for import/export
     $('#start-sync').click(function() {
         var sync_type = $('#sync_type').val();
-        $('#sync-status').text('Starting sync...').css('color', 'blue');
-        $('#sync-progress').show();
+        var $status = $('#sync-status');
+        var $progress = $('#sync-progress');
+        var $progressBar = $('.progress-bar');
+        var $syncDetails = $('.sync-details');
+
+        // Reset UI
+        $status.html('<span class="spinner is-active"></span> Starting sync...').css('color', 'blue');
+        $progress.show();
+        $progressBar.css('width', '0%');
+        $syncDetails.text('');
         
+        // Disable button during sync
+        $(this).prop('disabled', true);
+        
+        // Start time tracking
+        var startTime = new Date();
+
         $.ajax({
             url: ajaxurl,
             type: 'POST',
@@ -394,22 +397,42 @@ jQuery(document).ready(function($) {
                 xhr.addEventListener("progress", function(evt) {
                     if (evt.lengthComputable) {
                         var percentComplete = evt.loaded / evt.total;
-                        $('.progress-bar').css('width', Math.round(percentComplete * 100) + '%');
-                        $('.sync-details').text('Processing: ' + Math.round(percentComplete * 100) + '%');
+                        var currentWidth = Math.round(percentComplete * 100);
+                        $progressBar.css('width', currentWidth + '%');
+                        
+                        // Calculate estimated time remaining
+                        var currentTime = new Date();
+                        var elapsed = (currentTime - startTime) / 1000; // in seconds
+                        var estimatedTotal = elapsed / percentComplete;
+                        var remaining = Math.round(estimatedTotal - elapsed);
+                        
+                        var statusText = 'Processing: ' + currentWidth + '% complete';
+                        if (remaining > 0) {
+                            statusText += ' - About ' + remaining + 's remaining';
+                        }
+                        
+                        $syncDetails.text(statusText);
                     }
                 }, false);
                 return xhr;
             },
             success: function(response) {
                 if (response.success) {
-                    $('#sync-status').text('Sync completed successfully!').css('color', 'green');
-                    $('.sync-details').text('Imported: ' + response.data.imported + ' items, Updated: ' + response.data.updated);
+                    $status.html('✅ Sync completed successfully!').css('color', 'green');
+                    $syncDetails.html(
+                        'Imported: <strong>' + response.data.imported + '</strong> items<br>' +
+                        'Updated: <strong>' + response.data.updated + '</strong> items<br>' +
+                        '<small>Total time: ' + Math.round((new Date() - startTime)/1000) + 's</small>'
+                    );
                 } else {
-                    $('#sync-status').text('Sync failed: ' + response.data).css('color', 'red');
+                    $status.html('❌ Sync failed: ' + response.data).css('color', 'red');
                 }
             },
             error: function(xhr, status, error) {
-                $('#sync-status').text('Sync error: ' + error).css('color', 'red');
+                $status.html('❌ Sync error: ' + error).css('color', 'red');
+            },
+            complete: function() {
+                $('#start-sync').prop('disabled', false);
             }
         });
     });
