@@ -438,31 +438,67 @@ jQuery(document).ready(function($) {
     });
     
     $('#export-products').click(function() {
-        $('#export-status').text('Preparing export...').css('color', 'blue');
-        
-        // Create a temporary form to trigger download
-        var form = document.createElement('form');
-        form.method = 'POST';
-        form.action = ajaxurl;
-        
-        var inputAction = document.createElement('input');
-        inputAction.type = 'hidden';
-        inputAction.name = 'action';
-        inputAction.value = 'export_products_to_accountit';
-        form.appendChild(inputAction);
-        
-        var inputNonce = document.createElement('input');
-        inputNonce.type = 'hidden';
-        inputNonce.name = 'security';
-        inputNonce.value = '<?php echo wp_create_nonce("accountit_export_nonce"); ?>';
-        form.appendChild(inputNonce);
-        
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
-        
-        $('#export-status').text('Export completed!').css('color', 'green');
+    var $btn = $(this);
+    var $status = $('#export-status');
+    
+    $btn.prop('disabled', true);
+    $status.html('<span class="spinner is-active"></span> Preparing export...').css('color', 'blue');
+    
+    $.ajax({
+        url: ajaxurl,
+        type: 'POST',
+        data: {
+            action: 'export_products_to_accountit',
+            security: '<?php echo wp_create_nonce("accountit_export_nonce"); ?>'
+        },
+        // Important: Don't set dataType as we're handling raw response
+        success: function(csvData, textStatus, xhr) {
+            // Check if we actually got CSV data
+            if (xhr.getResponseHeader('Content-Type').includes('text/csv')) {
+                var blob = new Blob([csvData], {type: 'text/csv;charset=utf-8;'});
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = 'woocommerce-products-export-' + new Date().toISOString().slice(0,10) + '.csv';
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(function() {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+                
+                $status.html('✓ Export completed!').css('color', 'green');
+            } else {
+                // Handle unexpected response
+                try {
+                    var json = JSON.parse(csvData);
+                    if (json.data) {
+                        alert('Error: ' + json.data);
+                        $status.html('✗ ' + json.data).css('color', 'red');
+                    }
+                } catch (e) {
+                    alert('Unexpected response from server');
+                    $status.html('Products not found').css('color', 'red');
+                    console.error('Export response:', csvData);
+                }
+            }
+        },
+        error: function(xhr) {
+            var errorMsg = 'Export failed';
+            try {
+                var json = JSON.parse(xhr.responseText);
+                if (json.data) errorMsg = json.data;
+            } catch (e) {
+                errorMsg += ' (HTTP ' + xhr.status + ')';
+            }
+            alert(errorMsg);
+            $status.html('✗ Export failed').css('color', 'red');
+        },
+        complete: function() {
+            $btn.prop('disabled', false);
+        }
     });
+});
 });
 </script> 
 
