@@ -1,5 +1,5 @@
 <?php
-define('VERSION', "1.59");
+define('VERSION', "1.60");
 
 defined('ABSPATH') or die('No script kiddies please!');
 /**
@@ -9,7 +9,8 @@ defined('ABSPATH') or die('No script kiddies please!');
 Plugin Name: Woo AccountIT Connector
 Plugin URI: https://accountit.co.il
 Description: This plugins sends a mail to the shop admin and the customer a mail of the ordered pdf and also pushes the data to AccountIT database
-Version: 1.59
+Version: 1.60
+License: GPL2
 Author: AccountIT
 Author URI: https://accountit.co.il
 Text Domain: woo-tracker
