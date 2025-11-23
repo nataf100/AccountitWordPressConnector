@@ -232,9 +232,9 @@ function import_accountit_items_to_woocommerce($sync_type = 'full') {
         
 
         foreach ($response as $item) {
-            if (empty($item['num']) || empty($item['name'])) continue;
+            if (empty($item['extcatnum']) || empty($item['name'])) continue;
             
-            $product_id = wc_get_product_id_by_sku($item['num']);
+            $product_id = wc_get_product_id_by_sku($item['extcatnum']);
             
             // For partial sync, skip existing products
             if ($sync_type == 'partial' && $product_id) {
@@ -251,7 +251,7 @@ function import_accountit_items_to_woocommerce($sync_type = 'full') {
             
             // Set product data
             $product->set_name($item['name']);
-            $product->set_sku($item['num']);
+            $product->set_sku($item['extcatnum']);
             $product->set_status('publish');
             
             if (isset($item['defprice']) && is_numeric($item['defprice'])) {

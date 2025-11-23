@@ -103,9 +103,18 @@ function track_order_details($order_id) {//, $source) {
             
             $product = wc_get_product($item_data->get_product_id());
             if (isset($product)){
-                 $item_sku[] = $product->get_sku();
-                 if(isset($item_sku) && count($item_sku) > 0)
-                    $ext_cat_num = $item_sku[0];
+                $item_sku = $product->get_sku();
+                //check if sku is not empty and if it is string or array
+                if(isset($item_sku) && $item_sku != ""){
+                    if(is_array($item_sku) && count($item_sku) > 0){
+                        $ext_cat_num = $item_sku[0];
+                    }else{
+                        $ext_cat_num = $item_sku;
+                    }
+                }
+                else{
+                    $ext_cat_num = $product->get_id();
+                }
             }
            
             $acc_it_docdetials[] = array(

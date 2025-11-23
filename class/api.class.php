@@ -11,7 +11,7 @@ class AccountAPI {
         else if($env_id == 2)
         {
             //devserver server
-            return "http://accountit.local/";
+            return "http://accountit.local/accountit/src/";
         }
         return "https://my.accountit.co.il/";
     }
@@ -32,7 +32,7 @@ class AccountAPI {
         else if($env == 2)
         {
             //devserver server
-            $this->api_url  = "http://accountit.local/api.php";
+            $this->api_url  = "http://accountit.local/accountit/src/api.php";
         }
     }
     
