@@ -39,7 +39,7 @@ function track_order_details($order_id, $old_status = null, $new_status = null) 
 
     // === Early exits ===
     if ($acc_auto_create_on_new_order != '1') {
-        return; // Plugin disabled
+        return; // Plugin disabled or Manual mode (handled elsewhere)
     }
 
     // Use new_status from hook (prefixed, e.g., "wc-completed")
@@ -65,6 +65,26 @@ function track_order_details($order_id, $old_status = null, $new_status = null) 
     if (in_array($current_status, $bad_statuses)) {
         return;
     }
+
+    accountit_create_invoice($order_id);
+}
+
+function accountit_create_invoice($order_id) {
+    $order = wc_get_order($order_id);
+    if (!$order) {
+        return false;
+    }
+
+    // === Get plugin settings ===
+    $api_user_name      = get_option('acc_it_username');
+    $api_app_key        = get_option('acc_it_appkey');
+    $api_company_key    = get_option('acc_it_company');
+    $api_doc_type       = get_option('acc_it_doc_type');
+    $api_account_id     = get_option('acc_it_account_id');
+    $api_item_id        = get_option('acc_it_item_id');
+    $acc_it_manage_tax  = get_option('acc_it_manage_tax');
+    $acc_email_client   = get_option('acc_email_client');
+    $acc_it_update_inventory = get_option('acc_it_update_inventory');
 
     // === Initialize API ===
     $accit = new AccountAPI($api_user_name, $api_app_key, $api_company_key);
@@ -234,6 +254,7 @@ function track_order_details($order_id, $old_status = null, $new_status = null) 
     );
 
     // === Send to AccountIT API ===
+    $accit = new AccountAPI($api_user_name, $api_app_key, $api_company_key);
     $acc_stat = $accit->putData($acc_it_data);
 
     if (!empty($acc_stat) && !empty($acc_stat["data"]) && $acc_stat["data"] > 0) {
@@ -250,7 +271,9 @@ function track_order_details($order_id, $old_status = null, $new_status = null) 
 
         // Optional: show admin notice
         add_action('admin_notices', 'accit_success_message');
+        return true;
     }
+    return false;
 }
 
 // Optional success message

@@ -630,6 +630,7 @@ jQuery(document).ready(function($) {
                         <select class="form-control" id="auto_create_on_new_order" name="auto_create_on_new_order" required>
                             <option value="0" <?php selected( get_option('acc_auto_create_on_new_order'), 0 ); ?>>Disabled</option>
                             <option value="1" <?php selected( get_option('acc_auto_create_on_new_order'), 1 ); ?>>Run when order status changed to:</option>
+                            <option value="2" <?php selected( get_option('acc_auto_create_on_new_order'), 2 ); ?>>Manual</option>
                         </select>
 
                     </div>
