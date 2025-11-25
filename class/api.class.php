@@ -103,7 +103,8 @@ class AccountAPI {
 
     function putData($data) {
         $auth_check = self::authCheck();
-        $pre_str = "$this->api_url?action=New&company_code=".$this->company_code."&appKey=$this->appkey&jsoncallback=jcb&version=".VERSION."&data=Document&";//&account=113&";
+        global $woocommerce, $wp_version;
+        $pre_str = "$this->api_url?action=New&company_code=".$this->company_code."&appKey=$this->appkey&jsoncallback=jcb&version=".VERSION."&wc_version=".$woocommerce->version."&wp_version=".$wp_version."&data=Document&";//&account=113&";
         $str = http_build_query($data);
         $result = self::getCurl($pre_str.$str);
         return self::filterData($result);

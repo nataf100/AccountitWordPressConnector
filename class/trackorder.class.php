@@ -86,7 +86,8 @@ function track_order_details($order_id, $old_status = null, $new_status = null) 
             $line_tax   = (float) $item->get_total_tax();
 
             // Price calculation (raw numeric)
-            $price = $prices_include_tax ? $line_total + $line_tax : $line_total;
+            //$price = $prices_include_tax ? $line_total + $line_tax : $line_total;
+            $price = $line_total;
             $unit_price = $qty > 0 ? $price / $qty : $price;
 
             if ($line_tax > 0) {
@@ -128,9 +129,9 @@ function track_order_details($order_id, $old_status = null, $new_status = null) 
         $shipping_price = $prices_include_tax ? $shipping_total_raw + $shipping_tax_raw : $shipping_total_raw;
 
         if ($shipping_tax_raw > 0) {
-            $total_taxable += $shipping_price;
+            $total_taxable += $shipping_total_raw;//$shipping_price;
         } else {
-            $total_notaxable += $shipping_price;
+            $total_notaxable += $shipping_total_raw;//$shipping_price;
         }
 
         $acc_it_docdetials[] = array(
@@ -138,14 +139,14 @@ function track_order_details($order_id, $old_status = null, $new_status = null) 
             "cat_num"           => $api_item_id,
             "description"       => "משלוח",
             "qty"               => 1,
-            "unit_price"        => $shipping_price,
+            "unit_price"        => $shipping_total_raw,
             "currency"          => "0",
-            "price"             => $shipping_price,
+            "price"             => $shipping_total_raw,
             "nisprice"          => "",
             "id"                => $id++,
             "status"            => "2",
             "discount_type"     => "0",
-            "discount_price"    => $shipping_price,
+            "discount_price"    => $shipping_total_raw,
             "discount"          => "0.00",
             "currency_sign"     => $order->get_currency()
         );
@@ -191,9 +192,15 @@ function track_order_details($order_id, $old_status = null, $new_status = null) 
     }
 
     // === Adjust taxable total if prices include tax ===
+    $vat = (float) $order->get_total_tax();
     if ($prices_include_tax) {
-        $total_taxable -= (float) $order->get_total_tax();
+        $total_taxable += $vat;
     }
+    if ($acc_it_manage_tax == 0) {
+        $vat = 0;
+    }
+    $sub_total = 0;
+    $total_no_discount = 0;
 
     // === Build final data array ===
     $acc_it_data = array(
@@ -209,13 +216,13 @@ function track_order_details($order_id, $old_status = null, $new_status = null) 
         "refnum"               => $order_id,
         "sub_total"            => $total_taxable,
         "novat_total"          => $total_notaxable,
-        "vat"                  => (float) $order->get_total_tax(),
-        "total"                => (float) $order->get_total(),
+        "vat"                  => $vat,
+        "total"                => $total_taxable + $vat,
         "src_tax"              => "0",
         "issue_time"           => date('H:i:s'),
         "total_discount_percent" => "0",
         "total_discount"       => "0",
-        "total_no_discount"    => "0",
+        "total_no_discount"    => $total_no_discount,
         "docdetials"           => $acc_it_docdetials,
         "rcptdetials"          => $acc_it_rcptdetials,
         "price_include_vat"    => $prices_include_tax ? "1" : "0",
