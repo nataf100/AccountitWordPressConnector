@@ -151,13 +151,17 @@ function accountit_create_invoice($order_id) {
         if ($shipping_tax_raw > 0) {
             $total_taxable += $shipping_total_raw;//$shipping_price;
         } else {
-            $total_notaxable += $shipping_total_raw;//$shipping_price;
+            //this is tax free shipping but there is a tax on the order -> this is not allowed
+            return false;
         }
+        //get the actual shipping name
+        $shipping_name = $order->get_shipping_method();
+        $shipping_name = $shipping_name ? $shipping_name : "משלוח";
 
         $acc_it_docdetials[] = array(
             "num"               => "",
             "cat_num"           => $api_item_id,
-            "description"       => "משלוח",
+            "description"       => $shipping_name,
             "qty"               => 1,
             "unit_price"        => $shipping_total_raw,
             "currency"          => "0",
@@ -212,15 +216,28 @@ function accountit_create_invoice($order_id) {
     }
 
     // === Adjust taxable total if prices include tax ===
-    $vat = (float) $order->get_total_tax();
-    if ($prices_include_tax) {
-        $total_taxable += $vat;
-    }
+    $vat = 0;
+    
     if ($acc_it_manage_tax == 0) {
         $vat = 0;
+        $sub_total = 0;
+        $total_no_discount = 0;
+        $total_taxable = 0;
     }
-    $sub_total = 0;
-    $total_no_discount = 0;
+    else{
+        $vat = (float) $order->get_total_tax();
+        if ($prices_include_tax) {
+            $total_taxable = $order->get_total();
+            $sub_total = $order->get_total() - $vat;
+        }
+        else{
+            $total_taxable = $order->get_total();
+            $sub_total = $order->get_total() - $vat;
+        }
+        
+        $total_no_discount = $sub_total;
+    }
+    
 
     // === Build final data array ===
     $acc_it_data = array(
@@ -234,10 +251,10 @@ function accountit_create_invoice($order_id) {
         "issue_date"           => $docDate,
         "due_date"             => $docDate,
         "refnum"               => $order_id,
-        "sub_total"            => $total_taxable,
-        "novat_total"          => $total_notaxable,
+        "sub_total"            => $sub_total,
+        "novat_total"          => "0",
         "vat"                  => $vat,
-        "total"                => $total_taxable + $vat,
+        "total"                => $total_taxable,
         "src_tax"              => "0",
         "issue_time"           => date('H:i:s'),
         "total_discount_percent" => "0",
