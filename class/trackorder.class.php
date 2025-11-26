@@ -150,7 +150,11 @@ function accountit_create_invoice($order_id) {
 
         if ($shipping_tax_raw > 0) {
             $total_taxable += $shipping_total_raw;//$shipping_price;
-        } else {
+        } 
+        else if ($shipping_tax_raw == 0 && (float) $order->get_total_tax() <= 0) {
+            $total_notaxable += $shipping_total_raw;
+        }
+        else {
             //this is tax free shipping but there is a tax on the order -> this is not allowed
             return false;
         }

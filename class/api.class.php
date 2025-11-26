@@ -78,31 +78,21 @@ class AccountAPI {
     }
 
     function getData($serial = '9999') {
-        $auth_check = self::authCheck();
+        //$auth_check = self::authCheck();
         $str = "$this->api_url?action=Get&company_code=".$this->company_code."&appKey=$this->appkey&jsoncallback=jcb&version=".VERSION."&data=Document&num=$serial";
-      
-        if( $auth_check == -1 ):
-            return;
-        endif;
-
         $result = self::getCurl($str);
         return self::filterData($result);
     }
 
     function getItemData($serial = '9999') {
-        $auth_check = self::authCheck();
+        //$auth_check = self::authCheck();
         $str = "$this->api_url?action=Get&data=ItemList&company_code=".$this->company_code."&appKey=$this->appkey&jsoncallback=jcb&version=".VERSION."&num=$serial";
-       
-        if( $auth_check == -1 ):
-            return;
-        endif;
-
         $result = self::getCurl($str);
         return self::filterData($result);
     }
 
     function putData($data) {
-        $auth_check = self::authCheck();
+        //$auth_check = self::authCheck();
         global $woocommerce, $wp_version;
         $pre_str = "$this->api_url?action=New&company_code=".$this->company_code."&appKey=$this->appkey&jsoncallback=jcb&version=".VERSION."&wc_version=".$woocommerce->version."&wp_version=".$wp_version."&data=Document&";//&account=113&";
         $str = http_build_query($data);
@@ -111,8 +101,8 @@ class AccountAPI {
     }
 
     function __destruct() {
-        $str = "$this->api_url?action=Logout&version=".VERSION;
-        self::getCurl($str);
+        //$str = "$this->api_url?action=Logout&version=".VERSION;
+        //self::getCurl($str);
         if (file_exists(dirname(__FILE__)."/cookie2.txt")) {
           unlink(dirname(__FILE__)."/cookie2.txt");
         }

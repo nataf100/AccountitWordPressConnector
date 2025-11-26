@@ -219,8 +219,17 @@ function import_accountit_items_to_woocommerce($sync_type = 'full') {
         if (is_wp_error($response)) {
             throw new Exception('Failed to retrieve data from AccountIT: ' . $response->get_error_message());
         }
-        
-        
+
+        //if response is empty
+        if (empty($response)) {
+            throw new Exception('No data found in AccountIT');
+        }
+
+        //if response containes error
+        if (isset($response['error'])) {
+            throw new Exception('Error: ' . $response['message']);
+        }
+    
         $items = $response;
         if (!is_array($items)) {
             throw new Exception('Invalid API response format');
