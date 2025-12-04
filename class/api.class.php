@@ -91,6 +91,12 @@ class AccountAPI {
         return self::filterData($result);
     }
 
+    function getAccountData($first_account = false) {
+        $str = "$this->api_url?action=Get&data=AccountList&company_code=".$this->company_code."&appKey=$this->appkey&jsoncallback=jcb&version=".VERSION."&first_account=".$first_account;
+        $result = self::getCurl($str);
+        return self::filterData($result);
+    }
+
     function putData($data) {
         //$auth_check = self::authCheck();
         global $woocommerce, $wp_version;
