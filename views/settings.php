@@ -8,51 +8,49 @@
 
 defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
 
-add_action('wp_ajax_my_action', 'my_ajax_action_function');
-
-function my_ajax_action_function(){
-
-    $reponse = array();
-    $env = $_POST['env'];
-    $prefix = $_POST['company'];
-    $api_code = $_POST['appkey'];
-    $type = $_POST['type'];
-    /*
-    $url = AccountAPI::GetEnvUrl($env);
-    $client = new nusoap_client($url."/api_ws.php?wsdl"); // Create a instance for nusoap client
-    if($type == 1) //get caccounts
-    {
-        $response_call = $client->call('get_accounts', array("company_code" => $prefix, "app_key"=>$api_code, "account"=>0, "type"=>0));
-        if($response_call && count($response_call) > 0)
-        {
-            $response['response'][] = ["num"=>$response_call[0]["num"], "name"=>$response_call[0]["company"]];
+function handle_accountit_pull_data() {
+    check_ajax_referer('accountit_pull_nonce', 'security');
+    
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error('Unauthorized', 403);
+    }
+    
+    $type = isset($_POST['type']) ? sanitize_text_field($_POST['type']) : '';
+    
+    // Get API credentials from options
+    $api_user_name = get_option('acc_it_username');
+    $api_app_key = get_option('acc_it_appkey');
+    $api_company_key = get_option('acc_it_company');
+    
+    if (empty($api_user_name) || empty($api_app_key) || empty($api_company_key)) {
+        wp_send_json_error('Please configure AccountIT API credentials first.');
+    }
+    
+    $accit = new AccountAPI($api_user_name, $api_app_key, $api_company_key);
+    
+    try {
+        if ($type == 'client') {
+            $response = $accit->getAccountData(1);
+            if (!empty($response) && is_array($response) && isset($response['success']) && $response['success'] == true) {
+                wp_send_json_success(array('id' => $response['data'][0]['num']));
+            } else {
+                throw new Exception('No client found or invalid response');
+            }
+        } elseif ($type == 'item') {
+            $response = $accit->getItemData(1);
+            if (!empty($response) && is_array($response) && isset($response['success']) && $response['success'] == true) {
+                wp_send_json_success(array('id' => $response['data'][0]['cat_num']));
+            } else {
+                throw new Exception('No item found or invalid response');
+            }
+        } else {
+            throw new Exception('Invalid type');
         }
+    } catch (Exception $e) {
+        wp_send_json_error($e->getMessage());
     }
-    else if($type == 2) //get items
-    {
-        $response_call = $client->call('get_items', array("company_code" => $prefix, "app_key"=>$api_code, "num"=>0));
-        if($response_call && count($response_call) > 0)
-        {
-            $response['response'][] = ["num"=>$response_call[0]["cat_num"], "name"=>$response_call[0]["description"]];
-        }
-    }
-    else
-    {
-        $response['response'] = "Invalid action";
-        header( "Content-Type: application/json" );
-        echo json_encode($response);
-
-        //Don't forget to always exit in the ajax function.
-        exit();
-    }
-  
-    header( "Content-Type: application/json" );
-    echo json_encode($response);
-    */
-    //Don't forget to always exit in the ajax function.
-    exit();
-
 }
+add_action('wp_ajax_accountit_pull_data', 'handle_accountit_pull_data');
 
 /**
  * Export WooCommerce products in standard WooCommerce CSV format
@@ -219,8 +217,17 @@ function import_accountit_items_to_woocommerce($sync_type = 'full') {
         if (is_wp_error($response)) {
             throw new Exception('Failed to retrieve data from AccountIT: ' . $response->get_error_message());
         }
-        
-        
+
+        //if response is empty
+        if (empty($response)) {
+            throw new Exception('No data found in AccountIT');
+        }
+
+        //if response containes error
+        if (isset($response['error'])) {
+            throw new Exception('Error: ' . $response['message']);
+        }
+    
         $items = $response;
         if (!is_array($items)) {
             throw new Exception('Invalid API response format');
@@ -232,9 +239,9 @@ function import_accountit_items_to_woocommerce($sync_type = 'full') {
         
 
         foreach ($response as $item) {
-            if (empty($item['num']) || empty($item['name'])) continue;
+            if (empty($item['extcatnum']) || empty($item['name'])) continue;
             
-            $product_id = wc_get_product_id_by_sku($item['num']);
+            $product_id = wc_get_product_id_by_sku($item['extcatnum']);
             
             // For partial sync, skip existing products
             if ($sync_type == 'partial' && $product_id) {
@@ -251,7 +258,7 @@ function import_accountit_items_to_woocommerce($sync_type = 'full') {
             
             // Set product data
             $product->set_name($item['name']);
-            $product->set_sku($item['num']);
+            $product->set_sku($item['extcatnum']);
             $product->set_status('publish');
             
             if (isset($item['defprice']) && is_numeric($item['defprice'])) {
@@ -337,31 +344,59 @@ function woo_tracker_settings_details() {
 jQuery(document).ready(function($) {
 
     $("#refresh_account_id").click(function(){
-            var env_id = $("#env").val();
-            var company_id = $("#company").val();
-            var appkey_id = $("#appkey").val();
+            var $btn = $(this);
+            $btn.prop('disabled', true).text('Pulling...');
+            
             jQuery.ajax({
                 type: "POST",
                 url: ajaxurl,
-                data: { action: 'my_action' , env: env_id, company: company_id, appkey: appkey_id, type: 1 }
-                      }).done(function( msg ) {
-                          if(msg && msg.response && msg.response.length > 0)
-                              $("#account_id").val( msg.response[0].num);
-                      });
+                data: { 
+                    action: 'accountit_pull_data',
+                    type: 'client',
+                    security: '<?php echo wp_create_nonce("accountit_pull_nonce"); ?>'
+                }
+            }).done(function( response ) {
+                if(response.success) {
+                    $("#account_id").val( response.data.id );
+                    $btn.text('Pull Client id from AccountIT'); // Reset text
+                } else {
+                    alert('Error: ' + response.data);
+                    $btn.text('Pull Client id from AccountIT');
+                }
+            }).fail(function() {
+                alert('Request failed');
+                $btn.text('Pull Client id from AccountIT');
+            }).always(function() {
+                $btn.prop('disabled', false);
+            });
         });
         
         $("#refresh_item_id").click(function(){
-            var env_id = $("#env").val();
-            var company_id = $("#company").val();
-            var appkey_id = $("#appkey").val();
+            var $btn = $(this);
+            $btn.prop('disabled', true).text('Pulling...');
+            
             jQuery.ajax({
                 type: "POST",
                 url: ajaxurl,
-                data: { action: 'my_action' , env: env_id, company: company_id, appkey: appkey_id, type: 2 }
-                      }).done(function( msg ) {
-                             if(msg && msg.response && msg.response.length > 0)
-                                 $("#item_id").val( msg.response[0].num);
-                     });
+                data: { 
+                    action: 'accountit_pull_data',
+                    type: 'item',
+                    security: '<?php echo wp_create_nonce("accountit_pull_nonce"); ?>'
+                }
+            }).done(function( response ) {
+                if(response.success) {
+                    $("#item_id").val( response.data.id );
+                    $btn.text('Pull Item id from AccountIT'); // Reset text
+                } else {
+                    alert('Error: ' + response.data);
+                    $btn.text('Pull Item id from AccountIT');
+                }
+            }).fail(function() {
+                alert('Request failed');
+                $btn.text('Pull Item id from AccountIT');
+            }).always(function() {
+                $btn.prop('disabled', false);
+            });
         });
 
         // New AJAX for import/export
@@ -630,6 +665,7 @@ jQuery(document).ready(function($) {
                         <select class="form-control" id="auto_create_on_new_order" name="auto_create_on_new_order" required>
                             <option value="0" <?php selected( get_option('acc_auto_create_on_new_order'), 0 ); ?>>Disabled</option>
                             <option value="1" <?php selected( get_option('acc_auto_create_on_new_order'), 1 ); ?>>Run when order status changed to:</option>
+                            <option value="2" <?php selected( get_option('acc_auto_create_on_new_order'), 2 ); ?>>Manual</option>
                         </select>
 
                     </div>

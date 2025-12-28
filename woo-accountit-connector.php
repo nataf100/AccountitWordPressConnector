@@ -60,6 +60,35 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
         add_menu_page('Woo AccountIT Connector', 'Woo AccountIT Connector', 'manage_options', 'views/settings.php', 'woo_tracker_settings_details', AddFile::addFiles('assets/images', 'icon-small', 'png', true), 100);
     }
 
+    add_action('admin_enqueue_scripts', 'accountit_admin_scripts');
+    function accountit_admin_scripts() {
+        wp_enqueue_script('accountit-admin-js', plugin_dir_url(__FILE__) . 'assets/js/admin.js', array('jquery'), VERSION, true);
+        wp_localize_script('accountit-admin-js', 'accountit_ajax', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce'    => wp_create_nonce('accountit_manual_issue_nonce')
+        ));
+    }
+
+    add_action('wp_ajax_accountit_manual_issue_invoice', 'accountit_manual_issue_invoice');
+    function accountit_manual_issue_invoice() {
+        check_ajax_referer('accountit_manual_issue_nonce', 'security');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+        }
+
+        $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : 0;
+        if (!$order_id) {
+            wp_send_json_error('Invalid order ID');
+        }
+
+        if (accountit_create_invoice($order_id)) {
+            wp_send_json_success('Invoice created successfully');
+        } else {
+            wp_send_json_error('Failed to create invoice');
+        }
+    }
+
     //this is for newer version of woocommerce (after 8.0)
     add_filter('manage_woocommerce_page_wc-orders_columns', 'add_wc_order_list_custom_column', 20);
     add_action('manage_woocommerce_page_wc-orders_custom_column', 'display_wc_order_list_custom_column_content', 20, 2);
@@ -100,8 +129,15 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
                 $acc_docnum = 'Invoice #' . $acc_status;
             }
 
-            // Display the result
-            echo '<p>' . esc_html($acc_docnum) . '</p>';
+            // Check for manual mode and missing invoice
+            $acc_auto_create = get_option('acc_auto_create_on_new_order');
+            if (empty($acc_docnum) && $acc_auto_create == '2') {
+                echo '<button type="button" class="button button-small accountit-issue-invoice" data-order-id="' . esc_attr($order_id) . '">Issue Invoice</button>';
+                echo '<span class="accountit-status-msg"></span>';
+            } else {
+                // Display the result
+                echo '<p>' . esc_html($acc_docnum) . '</p>';
+            }
         }
     }
 
@@ -129,7 +165,13 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
                 $acc_docnum = "Invoice #" . $acc_status;
             }
 
-            echo '<p>' . $acc_docnum . '</p>';
+            $acc_auto_create = get_option('acc_auto_create_on_new_order');
+            if (empty($acc_docnum) && $acc_auto_create == '2') {
+                echo '<button type="button" class="button button-small accountit-issue-invoice" data-order-id="' . esc_attr($post->ID) . '">Issue Invoice</button>';
+                echo '<span class="accountit-status-msg"></span>';
+            } else {
+                echo '<p>' . $acc_docnum . '</p>';
+            }
         }
     }
 
