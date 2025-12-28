@@ -12,6 +12,7 @@ class AccountAPI {
         {
             //devserver server
             return "http://accountit.local/accountit/src/";
+
         }
         return "https://my.accountit.co.il/";
     }
